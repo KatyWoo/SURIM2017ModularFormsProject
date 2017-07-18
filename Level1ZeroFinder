@@ -1,0 +1,129 @@
+def findNonCuspLevel1q(weight):
+    m = ModularForms(1,weight)
+    for f in m.basis():
+        if f[0] != 0:
+            return f.qexp()
+    return 0
+
+def findBasisLevel1q(weight):
+    basis = []
+    E4 = eisenstein_series_qexp(4)
+    E6 = eisenstein_series_qexp(6)
+    Delta = (E4^3-E6^2)/1728
+    if (weight >= 16):
+        g = findNonCuspLevel1q(weight-12)
+        basis.append(E4^3*g)
+        b = findBasisLevel1q(weight-12)
+        for f in b:
+            basis.append(Delta*f)
+    else:
+        if (weight == 4): 
+            basis.append(E4)
+        elif (weight == 6): 
+            basis.append(E6)
+        elif (weight == 8): 
+            basis.append(E4^2)
+        elif (weight == 10): 
+            basis.append(E4*E6)
+        elif (weight == 12): 
+            basis.append(Delta)
+            basis.append(E4^3)
+        elif (weight == 14):
+            basis.append(E4^2*E6)
+    return basis
+
+#want to see the actual composition of the basis elements
+def qexp(composition):
+    qexp = 1
+    E4 = eisenstein_series_qexp(4, normalization = 'constant')
+    E6 = eisenstein_series_qexp(6, normalization = 'constant')
+    Delta = (E4^3-E6^2)/1728
+    for element in composition:
+        if (element == 'E4'):
+            qexp = qexp*E4
+        elif (element == 'E6'):
+            qexp = qexp*E6
+        elif (element == 'Delta'):
+            qexp = qexp*Delta
+        else:
+            qexp = 0
+    return qexp
+
+def findBasisLevel1e(weight):
+    basis = []
+    if (weight >= 16):
+        b = findBasisLevel1e(weight-12)
+        for f in b:
+            if not ('Delta' in f):
+                g = f[:]
+                g.extend(['E4','E4','E4'])
+                basis.append(g)
+            f.append('Delta')
+            basis.append(f)
+    else:
+        if (weight == 4):
+            basis.append(['E4'])
+        elif (weight == 6):
+            basis.append(['E6'])
+        elif (weight == 8):
+            basis.append(['E4','E4'])
+        elif (weight == 10):
+            basis.append(['E4','E6'])
+        elif (weight == 12):
+            basis.append(['Delta'])
+            basis.append(['E4','E4','E4'])
+        elif (weight == 14):
+            basis.append(['E4','E4','E6'])
+    return basis
+
+def expressInBasisLevel1e(modForm, weight):
+    basis = findBasisLevel1e(weight)
+    l = len(basis)
+    basisCoeff = []
+    for i in range(l):
+        i_coeff = []
+        for j in range(l):
+            i_coeff.append(qexp(basis[j])[i])
+        basisCoeff.append(i_coeff)
+    m = matrix(basisCoeff)
+    modFormCoeff = []
+    for i in range(l):
+        modFormCoeff.append(modForm[i])
+    v = vector(modFormCoeff)
+    return m.solve_right(v)
+
+def solvejPolynomialLevel1(modForm, weight):
+    basis = findBasisLevel1e(weight)
+    maxDelta = 0
+    maxDeltaNum = -1
+    for i in range(len(basis)):
+        if (maxDeltaNum < basis[i].count('Delta')):
+            maxDelta = i
+            maxDeltaNum = basis[i].count('Delta')
+    v = expressInBasisLevel1e(modForm, weight)
+    jPoly = 0
+    j = CC['j'].0
+    for i in range(len(basis)):
+        exp = maxDeltaNum - basis[i].count('Delta')
+        jPoly += v[i]*j^exp
+    return jPoly.roots()
+
+def findZeroes(jroots):
+    alphas = []
+    for j1 in jroots:
+        j = j1[0]
+        a = CC['a'].0
+        eq = 4*j*a*(1-a) - 1728
+        alphas1 = eq.roots()
+        for alpha in alphas1:
+            alphas.append(alpha[0])
+    taus = []
+    for alpha in alphas:
+        hgNum = hypergeometric([1/6,5/6],[1],1-alpha)
+        hgDenom = hypergeometric([1/6,5/6],[1],alpha)
+        tau = hgNum/hgDenom*I
+        taus.append(tau)
+    return taus   
+
+jroots = solvejPolynomialLevel1(eisenstein_series_qexp(30, normalization = 'constant'),30)
+print findZeroes(jroots)
